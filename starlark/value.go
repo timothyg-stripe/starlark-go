@@ -719,6 +719,7 @@ type Function struct {
 	module   *Module
 	defaults Tuple
 	freevars Tuple
+	frozen   bool
 }
 
 // A Module represents an evaluated Starlark module.
@@ -757,11 +758,23 @@ func (m *Module) Predeclared() StringDict {
 func (fn *Function) Name() string          { return fn.funcode.Name } // "lambda" for anonymous functions
 func (fn *Function) Doc() string           { return fn.funcode.Doc }
 func (fn *Function) Hash() (uint32, error) { return hashString(fn.funcode.Name), nil }
-func (fn *Function) Freeze()               { fn.defaults.Freeze(); fn.freevars.Freeze() }
 func (fn *Function) String() string        { return toString(fn) }
 func (fn *Function) Type() string          { return "function" }
 func (fn *Function) Truth() Bool           { return true }
 func (fn *Function) Module() *Module       { return fn.module }
+func (fn *Function) Freeze() {
+	if fn.frozen {
+		return
+	}
+	fn.frozen = true
+	fn.defaults.Freeze()
+	fn.freevars.Freeze()
+	for _, v := range fn.module.globals {
+		if v != nil {
+			v.Freeze()
+		}
+	}
+}
 
 // Globals returns a new StringDict containing all global
 // variables so far defined in the function's module.
